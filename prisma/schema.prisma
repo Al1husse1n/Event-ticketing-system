@@ -1,0 +1,76 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User{
+  id String @id @default(uuid())
+  name String     
+  email String @unique
+  password String 
+  createdAt DateTime @default(now())
+  
+  reservations Reservation[] @relation("reserver")
+
+}
+
+model Event{
+  id String @id @default(uuid())
+  name String
+  total_seats Int
+  available_seats Int
+  created_at DateTime @default(now())
+  event_date DateTime
+  reservations Reservation[] @relation("event")
+  @@index([event_date])
+}
+
+model Reservation{
+  id String @id @default(uuid())
+  event_id String 
+  user_id String
+  status reservationStatus
+  expires_at DateTime
+  version String
+  created_at DateTime @default(now())
+
+  event Event @relation("event", fields: [event_id], references: [id], onDelete: Cascade)
+  reserver User @relation("reserver", fields: [user_id], references: [id], onDelete: Cascade)
+  payments Payment[] @relation("reservation")     //multiple payments allowed incase of failure, but check if success before payment
+  @@index([user_id])
+  @@index([event_id])
+  @@index([expires_at])
+}
+
+model Payment{
+  id String @id @default(uuid())
+  reservation_id String         
+  idempotency_key String @unique
+  status paymentStatus
+  created_at DateTime @default(now())
+  reservation Reservation @relation("reservation", fields: [reservation_id], references: [id], onDelete: Cascade)
+  @@index([created_at])
+  @@index([reservation_id])
+}
+
+enum reservationStatus{
+  RESERVED
+  PAID
+  EXPIRED
+}
+
+enum paymentStatus{
+  COMPLETED
+  PENDING 
+  FAILED    
+}       
