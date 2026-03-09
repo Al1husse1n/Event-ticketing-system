@@ -18,49 +18,56 @@ model User{
   name String     
   email String @unique
   password String 
+  role userRole @default(CUSTOMER)
   createdAt DateTime @default(now())
   
   reservations Reservation[] @relation("reserver")
+  organizedEvents Event[] @relation("organizer")
 
 }
 
 model Event{
   id String @id @default(uuid())
+  userId String       
   name String
-  total_seats Int
-  available_seats Int
-  created_at DateTime @default(now())
-  event_date DateTime
+  totalSeats Int
+  availableSeats Int                   
+  createdAt DateTime @default(now())
+  eventDate DateTime
+  isDelete Boolean @default(false)
   reservations Reservation[] @relation("event")
-  @@index([event_date])
+  organizer User @relation("organizer", fields: [userId], references: [id], onDelete: Cascade)
+  @@index([eventDate])
+  @@index([userId])
 }
 
 model Reservation{
   id String @id @default(uuid())
-  event_id String 
-  user_id String
-  status reservationStatus
-  expires_at DateTime
-  version String
-  created_at DateTime @default(now())
+  eventId String 
+  userId String
+  status reservationStatus @default(RESERVED)
+  expiresAt DateTime     
+  version Int @default(1)
+  createdAt DateTime @default(now())
 
-  event Event @relation("event", fields: [event_id], references: [id], onDelete: Cascade)
-  reserver User @relation("reserver", fields: [user_id], references: [id], onDelete: Cascade)
+  event Event @relation("event", fields: [eventId], references: [id], onDelete: Cascade)
+  reserver User @relation("reserver", fields: [userId], references: [id], onDelete: Cascade)
   payments Payment[] @relation("reservation")     //multiple payments allowed incase of failure, but check if success before payment
-  @@index([user_id])
-  @@index([event_id])
-  @@index([expires_at])
+  @@unique([userId, eventId])
+  @@index([userId])
+  @@index([eventId])
+  @@index([expiresAt])
 }
 
 model Payment{
   id String @id @default(uuid())
-  reservation_id String         
-  idempotency_key String @unique
-  status paymentStatus
-  created_at DateTime @default(now())
-  reservation Reservation @relation("reservation", fields: [reservation_id], references: [id], onDelete: Cascade)
-  @@index([created_at])
-  @@index([reservation_id])
+  reservationId String         
+  idempotencyKey String @unique
+  status paymentStatus @default(PENDING)
+  createdAt DateTime @default(now())
+  reservation Reservation @relation("reservation", fields: [reservationId], references: [id], onDelete: Cascade)
+  @@index([createdAt])
+  @@index([reservationId])
 }
 
 enum reservationStatus{
@@ -73,4 +80,10 @@ enum paymentStatus{
   COMPLETED
   PENDING 
   FAILED    
-}       
+}  
+
+enum userRole{
+  ORGANIZER 
+  CUSTOMER
+  ADMIN
+}
