@@ -7,7 +7,7 @@ const createEvent = async(req, res) => {
         const user = req.user;  
         if(user.role !== "ORGANIZER"){
             return res.status(401).json({error:"Only Organizers are allowed to create an Event"})
-        }
+        }           
 
         const event = await prisma.event.create({
             data:{
@@ -113,3 +113,5 @@ const deleteEvent = async(req, res) =>{
         return res.status(500).json({error: "Failed to delete event"});
     }
 }
+
+export {createEvent, updateEvent, deleteEvent}
