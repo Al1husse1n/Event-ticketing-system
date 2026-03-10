@@ -28,12 +28,13 @@ model User{
 
 model Event{
   id String @id @default(uuid())
-  userId String       
+  userId String                                                             
   name String
   totalSeats Int
   availableSeats Int                   
   createdAt DateTime @default(now())
   eventDate DateTime
+  category eventCategory
   isDelete Boolean @default(false)
   reservations Reservation[] @relation("event")
   organizer User @relation("organizer", fields: [userId], references: [id], onDelete: Cascade)
@@ -86,4 +87,16 @@ enum userRole{
   ORGANIZER 
   CUSTOMER
   ADMIN
+}
+
+enum eventCategory{
+  CONFERENCE
+  WORKSHOP
+  MEETUP
+  CONCERT
+  EXHBITION
+  RELIGOUS
+  ONLINE
+  COMMUNITY
+  CEREMONY  
 }
