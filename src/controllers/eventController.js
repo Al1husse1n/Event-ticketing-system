@@ -1,5 +1,4 @@
-import { prisma } from "../config/db";
-
+import {prisma} from "..//config/db";
 
 const createEvent = async(req, res) => {    
     try{
@@ -117,59 +116,86 @@ const deleteEvent = async(req, res) =>{
     }
 }
 
-const searchEvent = async(req,res) =>{
+
+const viewEvents = async(req, res) => {
     try{
-        const {page, limit, category, upcoming, userId, name, date} = req.query;
-        const pageNumber = parseInt(page) || 1;
-        const pageSize = parseInt(limit) || 10;
+        const user = req.user;
 
-        const where = {
-                    ...(upcoming === "true" && {eventDate: {gte: new Date()}}),
-                    ...(category && {category: category.toUpperCase()}),
-                    ...(userId  && {userId: userId}),
-                    ...(name  && {name: {contains: name, mode:"insensitive"}}),
-                    ...(date && {eventDate: {
-                                        gte: new Date(date),
-                                        lt: new Date(new Date(date).setDate(new Date(date).getDate() + 1))
-                                    }}),
-                    
-                    isDelete: false,
-                }
+        if(user.role !== "ORGANIZER"){
+            return res.status(403).json({error: "Not authorized to view Events"});
+        }
 
-        const [events, total] = await Promise.all([
-            prisma.event.findMany({
-            where,  
-            skip: (pageNumber - 1) * pageSize,
-            take: pageSize,
+        const events = await prisma.event.findMany({
+            where: {userId: user.id},
             orderBy: {
-                eventDate: "asc"
-            }
-            }),
-
-            prisma.event.count({where})
-        ]);
-
-        const totalPages = Math.ceil(total/pageSize);
-
-        return res.status(200).json({
-            status:"success",
-            data:{
-                events,
-                totalPages,
-                currentPage: pageNumber,
-                pageSize,
-                hasNextPage: pageNumber < totalPages,
-                hasPreviousPage: pageNumber > 1
+                createdAt: "desc"
             }
         });
-            
+
+        return res.status(200).json({
+            status: "success",
+            data: {
+                events
+            }
+        });
 
     }
 
     catch(error){
         console.error(error);
-        return res.status(500).json({error:"Failed to search events"})
+        return res.status(500).json({error: "Failed to fetch events"})
     }
-}
+};
 
-export {createEvent, updateEvent, deleteEvent, searchEvent};
+const viewEventReservation = async(req, res) => {
+    try{
+        const {cursor, limit} = req.query;
+        const event_id = req.params.event_id;
+        const user = req.user;
+
+        const pageSize = parseInt(limit) || 10;
+
+        if(user.role !== "ORGANIZER"){
+            return res.status(403).json({error: "Not authorized to view Events"});
+        }
+
+        const eventExists = await prisma.event.findUnique({
+            where: {id:event_id, status: "PAID"}
+        });
+
+        if(!eventExists){
+            return res.status(404).json({error: "Event doesn't exist"});
+        }
+
+        const reservations = await prisma.reservation.findMany({
+            where: {eventId: event_id},
+            ...(cursor && {cursor: {id:cursor}}),
+            take:pageSize + 1,
+            orderBy: {
+                createdAt: "desc"
+            }
+        });
+
+        let nextCursor = null;
+        if(reservations.length > pageSize){
+            const nextItem = reservations.pop();
+            nextCursor = nextItem.id;
+        }
+
+        return res.status(200).json({
+            status: "success",
+            data:{
+                reservations,
+                nextCursor  
+            }
+        })
+
+    }
+
+    catch(error){
+        console.error(error);
+        return res.status(500).json({error: "Failed fetching reservations"});
+    }
+};
+
+export {createEvent, updateEvent, deleteEvent, viewEvents, viewEventReservation};
