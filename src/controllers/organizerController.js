@@ -43,7 +43,7 @@ const viewEventReservation = async(req, res) => {
         }
 
         const eventExists = await prisma.event.findUnique({
-            where: {id:event_id}
+            where: {id:event_id, status: "PAID"}
         });
 
         if(!eventExists){
