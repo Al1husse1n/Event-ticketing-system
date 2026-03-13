@@ -1,5 +1,5 @@
 import z from "zod";
-const viewReservationSchema = z.object({
+const searchEventSchema = z.object({
     query: z.object({
         page: z.coerce.number().
         int({message: "page must be an integer"}).
@@ -20,4 +20,5 @@ const viewReservationSchema = z.object({
     body: z.object({}).optional()
 });
 
-export {viewReservationSchema};
+export {searchEventSchema};
+
