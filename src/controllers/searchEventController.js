@@ -2,14 +2,14 @@ import { prisma } from "../config/db";
 
 const searchEvent = async(req,res) =>{
     try{
-        const {page, limit, category, upcoming, userId, name, date} = req.query;
+        const {page, limit, category, upcoming, organizer, name, date} = req.query;
         const pageNumber = parseInt(page) || 1;
         const pageSize = parseInt(limit) || 10;
 
         const where = {
                     ...(upcoming === "true" && {eventDate: {gte: new Date()}}),
                     ...(category && {category: category.toUpperCase()}),
-                    ...(userId  && {userId: userId}),
+                    ...(organizer  && {organizer: {name: organizer}}),
                     ...(name  && {name: {contains: name, mode:"insensitive"}}),
                     ...(date && {eventDate: {
                                         gte: new Date(date),
