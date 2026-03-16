@@ -1,5 +1,5 @@
-import {prisma} from "..//config/db";
-
+import {prisma} from "../config/db";
+import { deleteCacheByPattern } from "../utils/deleteCache";
 const bookReservation = async(req, res) =>{
     try{
         const event_id = req.params.event_id;
@@ -35,9 +35,11 @@ const bookReservation = async(req, res) =>{
                 where: {
                     id: event_id,
                     availableSeats: { gt: 0 },
+                    version: eventExists.version,
                 },
                 data:{
                     availableSeats: {decrement: 1},
+                    version: {increment: 1}
                 }
             });
 
@@ -131,22 +133,23 @@ const payment = async(req, res) =>{
 const confirmPayment = async(req,res) =>{
 
     try{
-        const {eventId, reservationId, paymentId} = req.body;
+        const {event_id, reservationId, paymentId} = req.body;
         const user = req.user;
 
-        const eventExists = await prisma.event.findUnique({
-            where:{id: eventId}
-        });
-
-        if(!eventExists){
-            return res.status(404).json({error: "Event no longer exists"});
-        }
         const reservationExists = await prisma.reservation.findUnique({
             where:{id: reservationId}
         });
 
         if(!reservationExists){
             return res.status(404).json({error: "Reservation no longer exists"});
+        }
+
+        if(reservationExists.userId !== user.id){
+            return res.status(403).json({error:"Not authorized"});
+        }
+        
+        if(reservationExists.expiresAt < new Date()){
+            return res.status(400).json({error:"Reservation expired"});
         }
 
         const paymentExists = await prisma.payment.findUnique({
@@ -157,8 +160,11 @@ const confirmPayment = async(req,res) =>{
             return res.status(404).json({error: "Something went wrong try paying later"});
         }
 
+        if(paymentExists.status === "COMPLETED"){
+            return res.status(400).json({error:"Payment already confirmed"});
+        }
         const paymentDetails = await prisma.$transaction(async(tx) =>{
-            await prisma.reservation.update({
+            await tx.reservation.update({
                 where:{
                     id: reservationId
                 },
@@ -168,7 +174,7 @@ const confirmPayment = async(req,res) =>{
                 }
             });
 
-            return await prisma.payment.update({
+            return await tx.payment.update({
                 where:{
                     id: paymentId
                 },
@@ -177,6 +183,9 @@ const confirmPayment = async(req,res) =>{
                 }
             });
         });
+
+        await deleteCacheByPattern(`cache:*:/${event_id}/eventReservation:*`);
+        await redisClient.incr('profile:version'); 
 
         return res.status(200).json({
             status: "success",
@@ -191,6 +200,6 @@ const confirmPayment = async(req,res) =>{
         return res.status(500).json({error: "Failed completing payment"});
     }
 
-};
+};              
 
 export {bookReservation, payment, confirmPayment};

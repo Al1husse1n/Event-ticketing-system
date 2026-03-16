@@ -1,4 +1,5 @@
-import {prisma} from "..//config/db";
+import {prisma} from "../config/db";
+import redisClient from "../config/redis.js";
 
 const createEvent = async(req, res) => {    
     try{
@@ -19,7 +20,10 @@ const createEvent = async(req, res) => {
             },
         });
 
-        res.status(201).json({
+        await redisClient.incr('event:version'); 
+        await redisClient.incr('searchevent:version'); 
+
+        return res.status(201).json({
             status: "success",
             data:{
                 event
@@ -65,6 +69,10 @@ const updateEvent = async(req, res) => {
             }
         });
 
+        await redisClient.incr('event:version'); 
+        await redisClient.incr('searchevent:version');
+        
+
         return res.status(200).json({
             status: "success",
             data: {updatedEvent}
@@ -100,7 +108,11 @@ const deleteEvent = async(req, res) =>{
             data: {
                 isDelete: true,
             }
-        })
+        });
+
+        await redisClient.incr('event:version'); 
+        await redisClient.incr('searchevent:version'); 
+    
 
         return res.status(200).json({
             status:"success",
@@ -122,7 +134,7 @@ const viewEvents = async(req, res) => {
         const user = req.user;
 
         if(user.role !== "ORGANIZER"){
-            return res.status(403).json({error: "Not authorized to view Events"});
+            return  res.status(403).json({error: "Not authorized to view Events"});
         }
 
         const events = await prisma.event.findMany({
