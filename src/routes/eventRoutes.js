@@ -4,16 +4,17 @@ import {createEvent, updateEvent, deleteEvent, viewEvents, viewEventReservation}
 import { createEventSchema, updateEventSchema, deleteEventSchema, viewEventReservationSchema } from '../validators/eventValidators.js';
 import { validateRequest } from '../middlewares/validateRequest.js';
 import { cache } from '../middlewares/cache.js';
+import { userLimiter } from '../middlewares/userRateLimiter.js';
 
 const router = express.Router();
 
 router.use(authMiddleware);
 
-router.post("/createEvent", validateRequest(createEventSchema), createEvent);
-router.patch("/updateEvent", validateRequest(updateEventSchema), updateEvent);
-router.delete("/deleteEvent", validateRequest(deleteEventSchema), deleteEvent);
-router.get("/", cache(120, "event"), viewEvents);                
-router.get("/:event_id/eventReservation", cache(120), validateRequest(viewEventReservationSchema), viewEventReservation); //no resource name for cache. to delete per item
+router.post("/createEvent", validateRequest(createEventSchema), userLimiter, createEvent);
+router.patch("/updateEvent", validateRequest(updateEventSchema),userLimiter, updateEvent);
+router.delete("/deleteEvent", validateRequest(deleteEventSchema), userLimiter, deleteEvent);
+router.get("/", cache(120, "event"), userLimiter, viewEvents);                
+router.get("/:event_id/eventReservation", cache(120), userLimiter, validateRequest(viewEventReservationSchema), viewEventReservation); //no resource name for cache. to delete per item
 
 export default router;
 
